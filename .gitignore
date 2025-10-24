@@ -1,0 +1,23 @@
+# Build
+target/
+bin/
+build/
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Maven
+mvnw
+mvnw.cmd
+.mvn/
+
+# Environment
+.env
+.env.*
+
+# Logs
+*.log

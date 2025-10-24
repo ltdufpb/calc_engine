@@ -1,0 +1,788 @@
+openapi: 3.0.3
+info:
+  title: Motor de Cálculo Geoespacial
+  description: |
+    API reativa para execução de workflows de cálculos geoespaciais configuráveis.
+    
+    ## Funcionalidades Principais
+    - 🔄 **Workflows Configuráveis**: Criação e execução de fluxos de trabalho complexos
+    - ⚡ **Execução Reativa**: Arquitetura não-bloqueante com Spring WebFlux
+    - 🚀 **Paralelização**: Execução automática de tarefas independentes
+    - 🌍 **PostGIS**: Operações geoespaciais avançadas
+    - 📊 **Versionamento**: Controle de versão para funções espaciais
+    
+    ## Conceito: Workflows como Equações
+    O sistema funciona como uma calculadora de equações geoespaciais:
+    - **Workflow** = Equação completa (ex: `A(B,C)`)
+    - **Tasks** = Variáveis da equação (A, B, C)
+    - **Dependencies** = Parênteses que definem ordem de execução
+    
+    ## Bancos de Dados
+    - **calculator_engine** (5433): Configuração e metadados
+    - **postgis_calculator** (5434): Execução de cálculos PostGIS
+    
+  version: "1.0.0"
+  contact:
+    name: Equipe DPG - DATAPREV
+    email: suporte@dataprev.gov.br
+  license:
+    name: DATAPREV License
+    
+servers:
+  - url: http://localhost:8080/api
+    description: Servidor Local de Desenvolvimento
+  - url: https://sicar-federal.dataprev.gov.br/api
+    description: Servidor de Produção
+
+tags:
+  - name: Layers
+    description: Gerenciamento de camadas geográficas
+  - name: Spatial Functions
+    description: Gerenciamento de funções espaciais PostGIS
+  - name: Workflows
+    description: Execução de workflows configuráveis
+
+paths:
+  # ==================== LAYERS ====================
+  /layers:
+    get:
+      tags:
+        - Layers
+      summary: Listar todas as camadas
+      description: Retorna todas as camadas geográficas configuradas no sistema
+      responses:
+        '200':
+          description: Lista de camadas retornada com sucesso
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Layer'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    post:
+      tags:
+        - Layers
+      summary: Criar nova camada
+      description: Cria uma nova configuração de camada geográfica
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Layer'
+            examples:
+              propriedade_rural:
+                summary: Propriedade Rural
+                value:
+                  name: "Propriedade_Rural"
+                  geometryType: "POLYGON"
+                  groupName: "Cadastro_Rural"
+                  allowOverlap: false
+                  overlapRestrictions: "[2, 5]"
+                  generateBuffer: true
+                  bufferSize: 30.0
+                  calculateArea: true
+                  active: true
+      responses:
+        '200':
+          description: Camada criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Layer'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /layers/{id}:
+    get:
+      tags:
+        - Layers
+      summary: Buscar camada por ID
+      description: Retorna uma camada específica pelo seu identificador
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID único da camada
+      responses:
+        '200':
+          description: Camada encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Layer'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    
+    delete:
+      tags:
+        - Layers
+      summary: Deletar camada
+      description: Remove uma camada do sistema
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID único da camada
+      responses:
+        '204':
+          description: Camada deletada com sucesso
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /layers/group/{groupName}:
+    get:
+      tags:
+        - Layers
+      summary: Buscar camadas por grupo
+      description: Retorna todas as camadas de um grupo específico
+      parameters:
+        - name: groupName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Nome do grupo de camadas
+          examples:
+            cadastro_rural:
+              value: "Cadastro_Rural"
+            ambiental:
+              value: "Ambiental"
+      responses:
+        '200':
+          description: Camadas do grupo retornadas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Layer'
+
+  /layers/overlap:
+    get:
+      tags:
+        - Layers
+      summary: Buscar camadas que permitem sobreposição
+      description: Retorna camadas configuradas para permitir sobreposição com outras
+      responses:
+        '200':
+          description: Camadas que permitem sobreposição
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Layer'
+
+  # ==================== SPATIAL FUNCTIONS ====================
+  /spatial-functions:
+    get:
+      tags:
+        - Spatial Functions
+      summary: Listar todas as funções espaciais
+      description: Retorna todas as funções espaciais (todas as versões)
+      responses:
+        '200':
+          description: Lista de funções retornada
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpatialFunction'
+    
+    post:
+      tags:
+        - Spatial Functions
+      summary: Criar nova função espacial
+      description: Cria uma nova função espacial ou nova versão de uma existente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpatialFunction'
+            examples:
+              calculate_buffer:
+                summary: Função de Buffer
+                value:
+                  name: "calculate_buffer"
+                  version: 1
+                  sqlDefinition: "SELECT ST_Buffer(ST_GeomFromText($1), $2)"
+                  parameters: "wkt,distance"
+                  active: true
+              area_calculation:
+                summary: Cálculo de Área
+                value:
+                  name: "calculate_area"
+                  version: 1
+                  sqlDefinition: "SELECT ST_Area(ST_GeomFromText($1))"
+                  parameters: "wkt"
+                  active: true
+      responses:
+        '200':
+          description: Função criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpatialFunction'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /spatial-functions/{id}:
+    get:
+      tags:
+        - Spatial Functions
+      summary: Buscar função por ID
+      description: Retorna uma função espacial específica pelo ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Função encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpatialFunction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    
+    delete:
+      tags:
+        - Spatial Functions
+      summary: Deletar função espacial
+      description: Remove uma função espacial do sistema
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Função deletada com sucesso
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /spatial-functions/active:
+    get:
+      tags:
+        - Spatial Functions
+      summary: Listar funções ativas
+      description: Retorna apenas as funções espaciais marcadas como ativas
+      responses:
+        '200':
+          description: Funções ativas retornadas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpatialFunction'
+
+  /spatial-functions/{name}/{version}:
+    get:
+      tags:
+        - Spatial Functions
+      summary: Buscar função por nome e versão
+      description: Retorna uma versão específica de uma função pelo nome e versão
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Nome lógico da função
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Versão da função
+      responses:
+        '200':
+          description: Função encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpatialFunction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== WORKFLOWS ====================
+  /workflows/{workflowName}/execute:
+    post:
+      tags:
+        - Workflows
+      summary: Executar workflow
+      description: |
+        Executa um workflow configurado com os parâmetros fornecidos.
+        
+        ## Como Funciona
+        1. O sistema analisa as dependências do workflow
+        2. Executa tarefas independentes em paralelo
+        3. Aguarda conclusão das dependências
+        4. Executa próximas tarefas na sequência
+        5. Retorna resultado final
+        
+        ## Conceito A(B,C)
+        Para um workflow com dependência A(B,C):
+        - B e C executam simultaneamente
+        - A só executa após B e C terminarem
+        
+      parameters:
+        - name: workflowName
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Nome único do workflow a ser executado
+          examples:
+            simple_buffer:
+              value: "Simple_Buffer"
+            property_validation:
+              value: "Rural_Property_Validation"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - parameters
+              properties:
+                parameters:
+                  type: object
+                  additionalProperties: true
+                  description: |
+                    Mapa de parâmetros requeridos pelo workflow.
+                    As chaves devem corresponder aos parâmetros definidos nas funções espaciais do workflow.
+                  example:
+                    wkt: "POINT(-47.123 -15.456)"
+                    distance: 1000
+            examples:
+              simple_buffer:
+                summary: Buffer Simples
+                description: Execução de workflow de buffer em um ponto
+                value:
+                  parameters:
+                    wkt: "POINT(-47.123 -15.456)"
+                    distance: 1000
+              property_validation:
+                summary: Validação de Propriedade
+                description: Workflow completo de validação rural
+                value:
+                  parameters:
+                    property_wkt: "POLYGON((-47.123 -15.456, -47.120 -15.456, -47.120 -15.453, -47.123 -15.453, -47.123 -15.456))"
+                    app_wkt: "POLYGON((-47.125 -15.458, -47.118 -15.458, -47.118 -15.451, -47.125 -15.451, -47.125 -15.458))"
+                    max_area: 20000.0
+              geojson_union:
+                summary: União de GeoJSON
+                description: Processamento de união de geometrias
+                value:
+                  parameters:
+                    geojson_input: |
+                      {
+                        "type": "FeatureCollection",
+                        "features": [
+                          {
+                            "type": "Feature",
+                            "geometry": {
+                              "type": "Polygon",
+                              "coordinates": [[[-47.1, -15.4], [-47.0, -15.4], [-47.0, -15.3], [-47.1, -15.3], [-47.1, -15.4]]]
+                            },
+                            "properties": {
+                              "tipo": "propriedade"
+                            }
+                          }
+                        ]
+                      }
+      responses:
+        '200':
+          description: Workflow executado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                description: |
+                  Resultado da execução do workflow.
+                  Cada chave representa o alias de uma tarefa e seu valor é o resultado da execução.
+                  Geometrias WKT são automaticamente convertidas para GeoJSON.
+                example:
+                  task_alias:
+                    type: "Feature"
+                    geometry:
+                      type: "Polygon"
+                      coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]
+                    properties: {}
+              examples:
+                simple_buffer_result:
+                  summary: Resultado Buffer Simples
+                  value:
+                    calculate_buffer:
+                      type: "Feature"
+                      geometry:
+                        type: "Polygon"
+                        coordinates: [[[-47.132, -15.465], [-47.114, -15.465], [-47.114, -15.447], [-47.132, -15.447], [-47.132, -15.465]]]
+                      properties: {}
+                property_validation_result:
+                  summary: Resultado Validação Propriedade
+                  value:
+                    check_app_overlap: "No overlap"
+                    validate_total_area: "Valid area: 15000.5"
+                    generate_compliance_report:
+                      property_area: 15000.5
+                      app_check: "No overlap"
+                      area_check: "Valid area: 15000.5"
+                      compliance: "APPROVED"
+                      timestamp: "2024-01-15T10:30:00Z"
+        '400':
+          description: Parâmetros inválidos ou workflow não encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Tipo do erro
+                  message:
+                    type: string
+                    description: Descrição detalhada do erro
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: Timestamp do erro
+                  path:
+                    type: string
+                    description: Endpoint onde ocorreu o erro
+              examples:
+                missing_parameters:
+                  summary: Parâmetros Obrigatórios Ausentes
+                  value:
+                    error: "Missing required parameters"
+                    message: "Parameter 'wkt' is required for this workflow"
+                    timestamp: "2024-01-15T10:30:00Z"
+                workflow_not_found:
+                  summary: Workflow Não Encontrado
+                  value:
+                    error: "Workflow not found"
+                    message: "Workflow 'Invalid_Workflow' does not exist"
+                    timestamp: "2024-01-15T10:30:00Z"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+# ==================== COMPONENTS ====================
+components:
+  schemas:
+    Layer:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único da camada
+          readOnly: true
+        name:
+          type: string
+          description: Nome único da camada
+          example: "Propriedade_Rural"
+        geometryType:
+          type: string
+          description: Tipo de geometria esperado
+          enum: ["POINT", "LINESTRING", "POLYGON", "MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON"]
+          example: "POLYGON"
+        groupName:
+          type: string
+          description: Grupo lógico da camada
+          example: "Cadastro_Rural"
+        allowOverlap:
+          type: boolean
+          description: Se permite sobreposição com outras camadas
+          example: false
+          default: true
+        overlapRestrictions:
+          type: string
+          description: JSON array com IDs das camadas que não podem se sobrepor
+          example: "[2, 5, 8]"
+          nullable: true
+        generateBuffer:
+          type: boolean
+          description: Se deve gerar buffer automaticamente
+          example: true
+          default: false
+        bufferSize:
+          type: number
+          format: double
+          description: Tamanho padrão do buffer (DOUBLE PRECISION)
+          example: 30.0
+          nullable: true
+        calculateArea:
+          type: boolean
+          description: Se deve calcular área
+          example: true
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+          description: Data de criação (TIMESTAMP)
+          readOnly: true
+        active:
+          type: boolean
+          description: Se a camada está ativa
+          example: true
+          default: true
+
+    SpatialFunction:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único da função
+          readOnly: true
+        name:
+          type: string
+          description: Nome lógico da função
+          example: "calculate_buffer"
+        version:
+          type: integer
+          description: Versão da função
+          example: 1
+          minimum: 1
+        sqlDefinition:
+          type: string
+          description: Código SQL da função com placeholders ($1, $2, ...)
+          example: "SELECT ST_Buffer(ST_GeomFromText($1), $2)"
+        parameters:
+          type: string
+          description: Lista de parâmetros esperados (separados por vírgula)
+          example: "wkt,distance"
+          nullable: true
+        active:
+          type: boolean
+          description: Se esta versão está ativa
+          example: true
+          default: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Data de criação (TIMESTAMP)
+          readOnly: true
+
+
+
+
+
+
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único do workflow
+          readOnly: true
+        name:
+          type: string
+          description: Nome único e descritivo do workflow
+          example: "Property_Area_Buffer_Validation"
+        description:
+          type: string
+          description: Descrição opcional do propósito do workflow
+          example: "Workflow para validação de área de propriedade com buffer"
+        active:
+          type: boolean
+          description: Se o workflow está ativo e disponível para execução
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          description: Data de criação do workflow
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          description: Data da última atualização do workflow
+          readOnly: true
+
+
+    WorkflowTask:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único da tarefa
+          readOnly: true
+        workflowId:
+          type: integer
+          format: int64
+          description: ID do workflow ao qual esta tarefa pertence
+        spatialFunctionId:
+          type: integer
+          format: int64
+          description: ID da função espacial que será executada por esta tarefa
+        taskAlias:
+          type: string
+          description: Alias único da tarefa dentro do workflow
+          example: "Calculate_Initial_Area"
+        description:
+          type: string
+          description: Descrição opcional do papel desta tarefa no workflow
+          example: "Calcula a área inicial da propriedade"
+        createdAt:
+          type: string
+          format: date-time
+          description: Data de criação da tarefa
+          readOnly: true
+
+
+    TaskDependency:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único da dependência
+          readOnly: true
+        workflowId:
+          type: integer
+          format: int64
+          description: ID do workflow ao qual esta dependência pertence
+        sourceTaskId:
+          type: integer
+          format: int64
+          description: ID da tarefa fonte (pré-requisito)
+        targetTaskId:
+          type: integer
+          format: int64
+          description: ID da tarefa destino (dependente)
+        sourceOutputAlias:
+          type: string
+          description: Nome/alias da saída da tarefa fonte
+          example: "result"
+          default: "result"
+        targetInputParameter:
+          type: string
+          description: Nome do parâmetro de entrada da tarefa destino
+          example: "wkt"
+        createdAt:
+          type: string
+          format: date-time
+          description: Data de criação da dependência
+          readOnly: true
+
+
+
+
+  responses:
+    BadRequest:
+      description: Requisição inválida - parâmetros incorretos ou validação falhou
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                description: Tipo do erro
+              message:
+                type: string
+                description: Descrição detalhada do erro
+              timestamp:
+                type: string
+                format: date-time
+                description: Timestamp do erro
+              path:
+                type: string
+                description: Endpoint onde ocorreu o erro
+          examples:
+            validation_error:
+              summary: Erro de Validação
+              value:
+                error: "Validation Failed"
+                message: "Name cannot be blank"
+                timestamp: "2024-01-15T10:30:00Z"
+                path: "/api/layers"
+
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                description: Tipo do erro
+              message:
+                type: string
+                description: Descrição detalhada do erro
+              timestamp:
+                type: string
+                format: date-time
+                description: Timestamp do erro
+              path:
+                type: string
+                description: Endpoint onde ocorreu o erro
+          examples:
+            not_found:
+              summary: Recurso Não Encontrado
+              value:
+                error: "Not Found"
+                message: "Layer with ID 999 not found"
+                timestamp: "2024-01-15T10:30:00Z"
+                path: "/api/layers/999"
+
+    InternalServerError:
+      description: Erro interno do servidor
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                description: Tipo do erro
+              message:
+                type: string
+                description: Descrição detalhada do erro
+              timestamp:
+                type: string
+                format: date-time
+                description: Timestamp do erro
+              path:
+                type: string
+                description: Endpoint onde ocorreu o erro
+          examples:
+            database_error:
+              summary: Erro de Banco de Dados
+              value:
+                error: "Internal Server Error"
+                message: "Database connection failed"
+                timestamp: "2024-01-15T10:30:00Z" 

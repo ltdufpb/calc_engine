@@ -1,0 +1,71 @@
+services:
+  calculator-engine-db:
+    image: postgres:17
+    container_name: calculation-engine-db
+    environment:
+      POSTGRES_DB: calculator_engine
+      POSTGRES_USER: calculator_engine
+      POSTGRES_PASSWORD: calculator_engine
+    volumes:
+      - calculator_engine_data:/var/lib/postgresql/data
+      - ./src/main/resources/db_structure/calculator_engine:/docker-entrypoint-initdb.d
+    # ports:
+    #   - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calculator_engine -d calculator_engine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - geo_calc_network
+
+  postgis-calculator-db:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: postgis-calculator-db
+    environment:
+      POSTGRES_DB: postgis_calculator
+      POSTGRES_USER: postgis_calculator
+      POSTGRES_PASSWORD: postgis_calculator
+    volumes:
+      - postgis_calculator_data:/var/lib/postgresql/data
+      - ./src/main/resources/db_structure/postgis_calculator:/docker-entrypoint-initdb.d
+    # ports:
+    #   - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgis_calculator -d postgis_calculator"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - geo_calc_network
+
+  geo-calculation-engine-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # image: dpg/geo_calculation_engine:0.0.1
+    container_name: geo_calculation_engine_app
+    # ports:
+    #   - "8080:8080"
+    environment:
+      SPRING_R2DBC_URL: r2dbc:postgresql://calculator_engine:calculator_engine@calculator-engine-db:5432/calculator_engine?currentSchema=engine_configuration
+      SPRING_R2DBC_ADDITIONAL_DATASOURCES_CALC_URL: r2dbc:postgresql://postgis_calculator:postgis_calculator@postgis-calculator-db:5432/postgis_calculator
+    depends_on:
+      calculator-engine-db:
+        condition: service_healthy
+      postgis-calculator-db:
+        condition: service_healthy
+    networks:
+      - geo_calc_network
+      # - frontend_network
+      - gateway_network
+
+volumes:
+  calculator_engine_data:
+  postgis_calculator_data:
+
+networks:
+  geo_calc_network:
+    driver: bridge
+  # frontend_network:
+  #   driver: bridge
