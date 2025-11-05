@@ -7,6 +7,9 @@ ENV http_proxy= \
   https_proxy= \
   no_proxy=
 
+# Atualizar pacotes para corrigir CVEs
+RUN apk update && apk upgrade --no-cache
+
 WORKDIR /app
 COPY pom.xml .
 COPY settings.xml /root/.m2/settings.xml

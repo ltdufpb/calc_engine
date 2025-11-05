@@ -40,10 +40,10 @@ services:
       - geo_calc_network
 
   geo-calculation-engine-app:
+    image: rer-calc_engine:latest
     build:
       context: .
       dockerfile: Dockerfile
-    # image: dpg/geo_calculation_engine:0.0.1
     container_name: geo_calculation_engine_app
     # ports:
     #   - "8080:8080"
