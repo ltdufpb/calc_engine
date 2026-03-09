@@ -13,6 +13,14 @@ INSERT INTO engine_configuration.spatial_function (
     'geojson_input'
 );
 
+INSERT INTO engine_configuration.workflow (
+    name,
+    description
+) VALUES (
+    'union_workflow',
+    'Union calculation workflow'
+);
+
 
 INSERT INTO engine_configuration.workflow_task (
     workflow_id,
@@ -21,8 +29,8 @@ INSERT INTO engine_configuration.workflow_task (
     description,
     created_at
 ) VALUES (
-	2,
-	2,
+	1,
+	1,
 	'Calculate_union',
 	'Calculates the union area',
 	now()
