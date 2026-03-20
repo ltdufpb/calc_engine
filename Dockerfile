@@ -4,8 +4,8 @@
 FROM maven:3.9.8-eclipse-temurin-21-alpine AS dependencies
 
 ENV http_proxy= \
-  https_proxy= \
-  no_proxy=
+    https_proxy= \
+    no_proxy=
 
 # Atualizar pacotes para corrigir CVEs
 RUN apk update && apk upgrade --no-cache
@@ -16,7 +16,9 @@ COPY settings.xml /root/.m2/settings.xml
 
 # Download dependencies com cache - esta camada será reutilizada
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn dependency:go-offline -B -Dproject.build.sourceEncoding=UTF-8
+    mvn dependency:go-offline -B \
+    -Dproject.build.sourceEncoding=UTF-8 \
+    -Dmaven.resources.propertiesEncoding=ISO-8859-1
 
 # ============================
 # 2) Build Stage
@@ -26,8 +28,11 @@ FROM dependencies AS build
 COPY src ./src
 
 # Build com cache otimizado
+# propertiesEncoding=ISO-8859-1 fixes MalformedInputException on application.properties
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn clean package -DskipTests -Dproject.build.sourceEncoding=UTF-8
+    mvn clean package -DskipTests \
+    -Dproject.build.sourceEncoding=UTF-8 \
+    -Dmaven.resources.propertiesEncoding=ISO-8859-1
 
 # ============================
 # 3) Runtime Stage
