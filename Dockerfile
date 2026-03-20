@@ -16,9 +16,7 @@ COPY settings.xml /root/.m2/settings.xml
 
 # Download dependencies com cache - esta camada será reutilizada
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn dependency:go-offline -B \
-    -Dproject.build.sourceEncoding=UTF-8 \
-    -Dmaven.resources.propertiesEncoding=ISO-8859-1
+    mvn dependency:go-offline -B
 
 # ============================
 # 2) Build Stage
@@ -28,11 +26,9 @@ FROM dependencies AS build
 COPY src ./src
 
 # Build com cache otimizado
-# propertiesEncoding=ISO-8859-1 fixes MalformedInputException on application.properties
+# Encoding configurado no pom.xml (maven-resources-plugin propertiesEncoding=ISO-8859-1)
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn clean package -DskipTests \
-    -Dproject.build.sourceEncoding=UTF-8 \
-    -Dmaven.resources.propertiesEncoding=ISO-8859-1
+    mvn clean package -DskipTests
 
 # ============================
 # 3) Runtime Stage
