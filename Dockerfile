@@ -16,7 +16,7 @@ COPY settings.xml /root/.m2/settings.xml
 
 # Download dependencies com cache - esta camada será reutilizada
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn dependency:go-offline -B
+    mvn dependency:go-offline -B -Dproject.build.sourceEncoding=UTF-8
 
 # ============================
 # 2) Build Stage
@@ -27,7 +27,7 @@ COPY src ./src
 
 # Build com cache otimizado
 RUN --mount=type=cache,target=/root/.m2/repository \
-    mvn clean package -DskipTests
+    mvn clean package -DskipTests -Dproject.build.sourceEncoding=UTF-8
 
 # ============================
 # 3) Runtime Stage
@@ -48,4 +48,3 @@ ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 
 # Comando de execução da aplicação
 ENTRYPOINT ["sh", "-c", "java  -jar app.jar"]
-
