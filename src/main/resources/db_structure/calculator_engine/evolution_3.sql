@@ -1,34 +1,15 @@
--- Register the GeoJSON union function
-INSERT INTO engine_configuration.spatial_function (
-    name,
-    version,
-    sql_definition,
-    active,
-    parameters
-) VALUES (
-    'union',
-    1,
-    'SELECT public.process_geojson_union($1::text)',
-    true,
-    'geojson_input'
-);
+-- Evolution 3: Add output configuration to workflow tasks
+-- Allows configuring which task results should be included in the final API response
 
+-- Add column to control which tasks should be included in output
+ALTER TABLE engine_configuration.workflow_task
+ADD COLUMN include_in_output BOOLEAN DEFAULT TRUE;
 
-INSERT INTO engine_configuration.workflow_task (
-    workflow_id,
-    spatial_function_id,
-    task_alias,
-    description,
-    created_at
-) VALUES (
-	2,
-	2,
-	'Calculate_union',
-	'Calculates the union area',
-	now()
-);
+-- Add comment explaining the new column
+COMMENT ON COLUMN engine_configuration.workflow_task.include_in_output IS 'Controls whether this task result should be included in the final API response. All tasks are executed regardless of this setting to maintain dependencies.';
 
+-- Create index for performance when filtering output results
+CREATE INDEX idx_workflow_task_include_output ON engine_configuration.workflow_task(workflow_id, include_in_output);
 
--- Rollback
--- DELETE FROM engine_configuration.spatial_function WHERE name = 'union';
--- DELETE FROM engine_configuration.workflow_task WHERE task_alias = 'Calculate_union';
+-- Grant necessary permissions
+GRANT SELECT ON engine_configuration.workflow_task TO calculator_engine;
