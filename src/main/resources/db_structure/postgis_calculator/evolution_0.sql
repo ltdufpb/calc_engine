@@ -6,5 +6,4 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgis_calcula
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgis_calculator;
 
 -- Connect on postgis_calculator and execute sql: (\c postgis_calculator)
-CREATE EXTENSION postgis;
-
+CREATE EXTENSION IF NOT EXISTS postgis;

@@ -4,8 +4,8 @@
 FROM maven:3.9.8-eclipse-temurin-21-alpine AS dependencies
 
 ENV http_proxy= \
-  https_proxy= \
-  no_proxy=
+    https_proxy= \
+    no_proxy=
 
 # Atualizar pacotes para corrigir CVEs
 RUN apk update && apk upgrade --no-cache
@@ -26,6 +26,7 @@ FROM dependencies AS build
 COPY src ./src
 
 # Build com cache otimizado
+# Encoding configurado no pom.xml (maven-resources-plugin propertiesEncoding=ISO-8859-1)
 RUN --mount=type=cache,target=/root/.m2/repository \
     mvn clean package -DskipTests
 
@@ -48,4 +49,3 @@ ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
 
 # Comando de execução da aplicação
 ENTRYPOINT ["sh", "-c", "java  -jar app.jar"]
-

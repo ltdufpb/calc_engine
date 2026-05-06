@@ -43,7 +43,7 @@ BEGIN
                 COALESCE(
                     (SELECT ST_Union(b.geom)
                      FROM union_clusters b
-                     WHERE b.tipo <> a.tipo), 
+                     WHERE b.tipo <> a.tipo),
                     ST_GeomFromText('POLYGON EMPTY', 4326))
             ) AS geom,
             a.geom AS original_geom
@@ -86,4 +86,4 @@ COMMENT ON FUNCTION public.process_geojson_union(text) IS 'Processes a GeoJSON f
 GRANT EXECUTE ON FUNCTION public.process_geojson_union(text) TO postgis_calculator;
 
 -- Rollback
--- DROP FUNCTION IF EXISTS public.process_geojson_union(text); 
+-- DROP FUNCTION IF EXISTS public.process_geojson_union(text);
