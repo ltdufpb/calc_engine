@@ -27,20 +27,23 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Configurar JDK 21 (Maven)
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Configure JDK 21 (Maven)
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '21'
         cache: 'maven'
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v3
-      with:
-        languages: ${{ matrix.language }}
+    - name: Check Java and Maven in PATH
+      run: java -version && mvn -version
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v3
+    - name: Build Maven (CodeQL)
+      run: mvn -B clean package -DskipTests
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
